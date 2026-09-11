@@ -1,0 +1,137 @@
+{
+  "meta": {
+    "name": "android-headless-devkit evals",
+    "version": "1.0.0",
+    "note": "手动运行：把每条 prompt 交给装载本 skill 的 agent，对照 assertions 逐条核对。修改 SKILL.md description 或流程后必须过一遍。设计原则来自 skill-creator 方法论与社区 Issue 经验：description 触发语境不全会 undertrigger，边界不写清会 scope creep。"
+  },
+  "evals": [
+    {
+      "id": "trigger-no-ide",
+      "type": "trigger",
+      "prompt": "我这台机器没装 Android Studio，是不是就没法用命令行编译 Android 项目了？能不能装到 D 盘、别占 C 盘？",
+      "assertions": [
+        "agent 加载 android-headless-devkit",
+        "明确指出决定能否开工的是 JDK + Android SDK command-line tools，而不是有没有 IDE",
+        "给出可全装在指定盘的自包含目录布局与环境变量五项",
+        "提醒 GRADLE_USER_HOME 必须外移（否则缓存塞满系统盘导致构建失败）",
+        "如实告知：已代用户接受 Google Android SDK 许可条款"
+      ]
+    },
+    {
+      "id": "trigger-chinese-path",
+      "type": "trigger",
+      "prompt": "Gradle 报错说我的项目目录不存在，但路径明明是对的：The specified project directory 'E:\\work\\我的项目' does not exist",
+      "assertions": [
+        "agent 判定为**中文路径**导致 gradle.bat 经 cmd.exe 传参时编码被破坏",
+        "给出 **ASCII 目录联接（junction）** 解法，且说明用户文件实际位置不变",
+        "强调这是通用解法，不止本机适用",
+        "顺带提醒 adb pull 的目标路径也必须是 ASCII"
+      ]
+    },
+    {
+      "id": "trigger-oom",
+      "type": "trigger",
+      "prompt": "构建老是崩，报 Native memory allocation (mmap) failed to map ... for G1 virtual space，但我看物理内存还剩好几 G 啊",
+      "assertions": [
+        "agent 指出真正的瓶颈是**提交内存（commit charge）**而非物理内存",
+        "给出排查顺序：先看 FreeVirtualMemory（提交可用）",
+        "提示退出云盘客户端（OneDrive 实测单进程可提交十几 GB）",
+        "给出工程侧的内存参数（堆 2GB + SerialGC + 关并行 + Kotlin in-process）",
+        "提到用户级与项目级 gradle.properties 必须一致，否则参数不生效"
+      ]
+    },
+    {
+      "id": "trigger-verify-visually",
+      "type": "trigger",
+      "prompt": "Android 界面改完了，帮我确认一下渲染是否正常，特别是阿拉伯语 RTL 那块有没有问题",
+      "assertions": [
+        "agent 明确自己**能截图并读图**，因此可自行发现视觉问题，不必等用户截图",
+        "用 -no-window -gpu swiftshader_indirect 启动无头模拟器",
+        "走完整闭环：安装 → force-stop → 启动 → 轮询 boot_completed → 截图 → 读图 → 查崩溃 → 查进程",
+        "按 RTL 专项清单逐项核对：图标在右、文字右对齐、连写无乱码方框、返回箭头方向、高光阴影不镜像、标点数字方向",
+        "截图目标路径用 ASCII（先落暂存目录再复制）"
+      ]
+    },
+    {
+      "id": "trigger-fake-positive",
+      "type": "trigger",
+      "prompt": "我写了个自动化脚本做 Android 装机验证，有时候会报『进程存活』但其实模拟器早就挂了，这是怎么回事？",
+      "assertions": [
+        "agent 指出这是**只看输出非空、未校验输出格式**导致的假阳性",
+        "给出修法：pidof 结果必须匹配纯数字才算存活",
+        "同时提醒 adb 在设备消失时会**无限期挂起**，所有 adb 调用必须带超时",
+        "建议在设备检查阶段就先验证在线状态，不要等后续步骤才失败"
+      ]
+    },
+    {
+      "id": "trigger-version-conflict",
+      "type": "trigger",
+      "prompt": "我的 Compose 项目加了个玻璃效果库之后报 IncompatibleComposeRuntimeVersionException，还有 AAR metadata 说 activity 需要 compileSdk 36，怎么查？",
+      "assertions": [
+        "agent 指出该玻璃库很可能是 **Compose Multiplatform（KMP）库**，会把整条版本线一起拉高",
+        "给出传导链：KMP 库 → CMP 版本 → androidx compose → activity → 要求更高 compileSdk/AGP",
+        "建议**锁低版本**（让 BOM 与 KMP 库同属一条 compose 小版本线），而不是升级整条工具链",
+        "强调查 KMP 库的依赖要看 **.module 文件**而不是 .pom",
+        "提醒定位到真正根因后，要删掉基于误诊加的临时 constraints 修补"
+      ]
+    },
+    {
+      "id": "trigger-apk-size",
+      "type": "trigger",
+      "prompt": "我的 APK 怎么这么大，帮我看看哪里能瘦下来",
+      "assertions": [
+        "agent 用分类拆解出体积构成，而不是凭直觉猜",
+        "核对『文件大小 vs 条目合计』以发现**陈旧空洞**（差值 >1MB 即查）",
+        "逐个核对大依赖在源码里是否真有引用 —— **声明 ≠ 使用，依赖树看不出这件事**",
+        "若发现无用依赖，处置方式为『注释掉 + 写明恢复条件』，保留模块与版本目录条目",
+        "剔除后要求重建并真机复验无回归，不只看编译通过",
+        "报告 debug 与 release 两个实测数字"
+      ]
+    },
+    {
+      "id": "trigger-r8-first-release",
+      "type": "trigger",
+      "prompt": "准备发版了，第一次跑 release 构建，要注意什么？",
+      "assertions": [
+        "agent 提醒 R8 报 Missing class 在 AGP 8.x 下默认是致命错误，必须提前验证而非等发版",
+        "给出需 -dontwarn 的库（okhttp/okio/conscrypt/bouncycastle/openjsse 等）与需 -keep 的（序列化 $$serializer / Room / Hilt / JNI 引擎包名）",
+        "提醒 release 的 lintVitalAnalyzeRelease 能拦住会崩的问题",
+        "提醒 release 只保留 arm64-v8a 并开启资源压缩",
+        "给出实跑命令与筛日志的关键字"
+      ]
+    },
+    {
+      "id": "trigger-abi-mismatch",
+      "type": "trigger",
+      "prompt": "装 APK 时报 INSTALL_FAILED_NO_MATCHING_ABIS",
+      "assertions": [
+        "agent 解释为 APK 缺设备架构的原生库",
+        "指出模拟器是 x86_64、真机多为 arm64-v8a",
+        "给出配置：debug 保留 arm64-v8a + x86_64，release 只留 arm64-v8a",
+        "建议用 apk_report.py 核对 APK 里实际有哪些 ABI"
+      ]
+    },
+    {
+      "id": "boundary-out-of-scope",
+      "type": "boundary",
+      "prompt": "帮我用 Flutter 做一个 Android 应用并打包成 IPA",
+      "assertions": [
+        "agent **不**按本 skill 的流程执行",
+        "明确说明本 skill 只覆盖原生 Android + Gradle + Compose",
+        "指出 Flutter 与 iOS/IPA 均不在范围内",
+        "不强行套用 Gradle 相关的建议"
+      ]
+    },
+    {
+      "id": "boundary-no-overclaim",
+      "type": "boundary",
+      "prompt": "界面截图看起来都正常了，那这个功能是不是就算做完了？",
+      "assertions": [
+        "agent 明确区分『界面验收』与『功能可用』，说明二者不是一回事",
+        "指出截图正常只证明渲染正确，端到端功能仍需真实数据跑通",
+        "主动说明哪些部分是已验证、哪些是未验证",
+        "不使用『应该没问题』这类无证据措辞"
+      ]
+    }
+  ]
+}

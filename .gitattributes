@@ -1,0 +1,19 @@
+# 统一行尾：文本文件入库一律 LF，检出时按平台还原。
+# 本仓库含 PowerShell(.ps1) 与 Python 两类脚本，若不规范，
+# 跨平台检出容易出现整文件"被修改"的假象、影响脚本可移植性。
+* text=auto eol=lf
+
+# PowerShell 脚本在 Windows 上运行，允许检出为 CRLF
+*.ps1 text eol=crlf
+
+# 明确按二进制处理，禁止任何行尾转换
+*.png binary
+*.jpg binary
+*.apk binary
+*.aab binary
+*.jar binary
+*.so binary
+*.keystore binary
+
+# 让 diff/统计不把生成物算进来
+evals/*.json linguist-detectable=true
