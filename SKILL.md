@@ -131,6 +131,8 @@ android-headless-devkit/
 │   ├── env.ps1                       环境变量一键设置（含清空失效代理）
 │   ├── verify_loop.ps1               装→启→截图→查崩溃 一键闭环
 │   └── apk_report.py                 APK 体积构成 + 陈旧空洞诊断
+├── self_test.py                      apk_report.py 的自测（23 项断言）
+├── validate_skill.py                 SKILL.md 结构校验（18 项断言）
 └── evals/evals.json                  触发与行为断言（改 description 后必过）
 ```
 

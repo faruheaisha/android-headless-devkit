@@ -17,8 +17,12 @@
 改 `scripts/` 或 `self_test.py` 后，至少执行：
 
 ```powershell
-python .\self_test.py          # 23 项断言应全通过
+python .\self_test.py          # apk_report.py 的 23 项断言应全通过
+python .\validate_skill.py     # SKILL.md 的 18 项结构断言应全通过
 ```
+
+`validate_skill.py` 会检查 frontmatter 完整性与**引用无断链** ——
+改过 `SKILL.md` 的目录树或文件名后尤其要跑它（重命名文件很容易漏改引用）。
 
 涉及设备流程的改动（`verify_loop.ps1`），需要真跑一次装机验收：
 先启动无头模拟器，再执行 `verify_loop.ps1`，确认截图非空、崩溃检查与
@@ -60,7 +64,8 @@ python .\self_test.py          # 23 项断言应全通过
 
 ## 提交前自检
 
-- [ ] `python self_test.py` 全通过
+- [ ] `python self_test.py` 全通过（23 项）
+- [ ] `python validate_skill.py` 全通过（18 项，含引用无断链）
 - [ ] 新增/修改的数值都是**实测**的，未实测的已标注
 - [ ] 涉及设备流程的改动已**真跑过一次**装机验收
 - [ ] 没有引入 APK、密钥、本机绝对路径等不应进仓库的内容

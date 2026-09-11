@@ -75,8 +75,9 @@ resolution, and APK size auditing.*
 # 4) APK 体积审计（含陈旧空洞诊断）
 python .\scripts\apk_report.py "<apk>"
 
-# 5) 脚本自测
-python .\self_test.py
+# 5) 脚本自测 + 结构校验
+python .\self_test.py         # apk_report.py 的 23 项断言
+python .\validate_skill.py    # SKILL.md 的 18 项结构断言
 ```
 
 ## 核心判断：决定能否开工的不是 IDE
@@ -118,6 +119,7 @@ android-headless-devkit/
 │   ├── verify_loop.ps1               装→启→截图→查崩溃 一键闭环（带 adb 超时）
 │   └── apk_report.py                 APK 体积构成 + 陈旧空洞诊断
 ├── self_test.py                      apk_report.py 的自测（23 项断言）
+├── validate_skill.py                 SKILL.md 结构校验（18 项断言）
 └── evals/evals.json                  触发与行为断言
 ```
 

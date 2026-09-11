@@ -89,7 +89,13 @@ Android 开发环境**的机器上，从零搭出工具链，跑通构建 → �
 - `self_test.py` —— 23 项断言。**合成带空洞的 zip** 来验证空洞诊断路径
   （真实 APK 恰好没有空洞，无法覆盖该路径），并含真实 APK 冒烟测试。
 
-- `evals/evals.json` —— 触发与行为断言。
+- `validate_skill.py` —— `SKILL.md` 结构校验，18 项断言：
+  frontmatter 存在与闭合、必需字段、**`name` 与目录名一致**（技能发现依赖此约定）、
+  `description` 含 Use when / Not for / Triggers 三类语境、正文以一级标题开头、
+  **正文引用的本地文件真实存在（防断链）**、脚本语法可编译、仓库内无 APK/AAB/dex/so。
+  不依赖 pyyaml，手工解析 frontmatter —— 校验脚本自身不该有额外依赖。
+
+- `evals/evals.json` —— 触发与行为断言（11 条 eval / 51 条断言）。
 
 ### 已知边界
 
