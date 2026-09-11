@@ -1,6 +1,6 @@
 ---
 name: android-headless-devkit
-description: "无 Android Studio 的 Android 全流程开发与真机验收工具包：只用命令行（JDK + Android SDK CLI + Gradle）搭出可编译、可装、可看的完整链路，并在无头模拟器上完成「构建 → 安装 → 截图 → 读图验收 → 查崩溃」闭环。Use when 需要 ①在 Windows 上从零装 Android 工具链（无 IDE、装到指定盘、绕开中文路径与代理）；②解决 Gradle 构建失败（内存/提交量崩溃、编译错误批量暴露、构建耗时预算）；③做 Android 真机或模拟器验证而不是只交代码——要截图看见界面、要查崩溃日志、要验 RTL/暗色/无障碍；④排查依赖与版本冲突（Compose BOM 与 Compose Multiplatform 库互相拉扯、activity 要求更高 compileSdk、R8 Missing class）；⑤做 APK 体积审计与死依赖剔除。即使只做其中一环（只装 SDK、只截图、只查版本冲突、只量包体）也应使用本 skill。Not for: iOS/IPA、Flutter/React Native、Gradle 之外的构建系统（Bazel/Buck）、Play 上架流程与账号资质、Kotlin 语言语法教学、H5/小程序。Triggers: 无 Android Studio, 命令行装 Android SDK, sdkmanager, avdmanager, 模拟器无头, adb 截图, 真机验证, 装机验证, 界面验收, Android 构建失败, gradle OOM, mmap failed, 提交内存, 依赖冲突, Compose BOM, Haze 版本, R8, Missing class, APK 体积, 瘦身, 死依赖, 中文路径 gradle, ANDROID_HOME, WHPX, adb pull 失败, android headless, adb screencap, apk size audit, gradle build failed."
+description: "无 Android Studio 的 Android 全流程开发与真机验收工具包：只用命令行（JDK + Android SDK CLI + Gradle）从零搭出可编译、可安装、可看见的完整链路，并在无头模拟器上完成「构建 → 安装 → 截图 → 读图验收 → 查崩溃」闭环。关键能力是 Agent 能通过 adb 截图后读图，从而自己『看见』界面、独立发现并修掉只有肉眼才能发现的 UI 缺陷（布局留白、玻璃质感、RTL 渲染、返回键过小等），不必等用户截图反馈。Use when 需要 ①在 Windows 上从零装 Android 工具链（无 IDE、装到指定盘、绕开中文路径与代理）；②解决 Gradle 构建失败（内存/提交量崩溃、编译错误批量暴露、构建耗时预算）；③做 Android 真机或模拟器验证而不是只交代码——要截图看见界面、要查崩溃日志、要验 RTL/暗色/无障碍；④排查依赖与版本冲突（Compose BOM 与 Compose Multiplatform 库互相拉扯、activity 要求更高 compileSdk、R8 Missing class）；⑤做 APK 体积审计与死依赖剔除；⑥用无头浏览器对自己的 HTML 产出（交互原型、报告）逐屏渲染截图自检。即使只做其中一环（只装 SDK、只截图、只查版本冲突、只量包体、只渲染 HTML）也应使用本 skill。Not for: iOS/IPA、Flutter/React Native、Gradle 之外的构建系统（Bazel/Buck）、Play 上架流程与账号资质、Kotlin 语言语法教学、H5/小程序。Triggers: 无 Android Studio, 命令行装 Android SDK, sdkmanager, avdmanager, 模拟器无头, adb 截图, 真机验证, 装机验证, 界面验收, Android 构建失败, gradle OOM, mmap failed, 提交内存, 依赖冲突, Compose BOM, Haze 版本, R8, Missing class, APK 体积, 瘦身, 死依赖, 中文路径 gradle, ANDROID_HOME, WHPX, adb pull 失败, android headless, adb screencap, apk size audit, gradle build failed, 无头浏览器截图, headless chrome screenshot, HTML 原型验证, 逐屏截图, 交互设计验收."
 metadata:
   version: "1.0.0"
   last_updated: "2026-09-12"
@@ -65,6 +65,11 @@ UI 问题 → 审计包体并剔掉 17.63MB 死重量」的全过程。
 
 坑点速查（症状 → 根因 → 解法，一张表）：[06-pitfall-index.md](references/06-pitfall-index.md)
 
+**附**：产出的 HTML（交互原型、报告）同样要渲染验证 ——
+[07-html-prototype-harness.md](references/07-html-prototype-harness.md)
+本项目的教训是：**我写的第一版交互原型，犯了我自己在同期 PRD 里刚批评过的同一个错误**
+（内容堆在上半屏、下方大片空白）。写的时候看不出来，渲染出来一眼就看出来。
+
 ## 快速开始
 
 ```powershell
@@ -126,7 +131,8 @@ android-headless-devkit/
 │   ├── 03-device-verification.md   ★  无头模拟器装机验收闭环与 UI 验收清单
 │   ├── 04-dependency-versions.md      版本对齐、冲突诊断、R8 规则、排除清单
 │   ├── 05-apk-size-audit.md           体积构成、陈旧空洞、死依赖剔除
-│   └── 06-pitfall-index.md            坑点速查总表（症状→根因→解法）
+│   ├── 06-pitfall-index.md            坑点速查总表（症状→根因→解法）
+│   └── 07-html-prototype-harness.md   用无头浏览器逐屏验证自己的 HTML 产出
 ├── scripts/
 │   ├── env.ps1                       环境变量一键设置（含清空失效代理）
 │   ├── verify_loop.ps1               装→启→截图→查崩溃 一键闭环

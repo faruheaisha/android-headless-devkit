@@ -56,6 +56,7 @@ resolution, and APK size auditing.*
 | 4 修错回环 | 按"看得见的问题"改，改完**重新装机再验** | [03](references/03-device-verification.md) |
 | 5 依赖收口 | 版本对齐、剔除无用依赖、R8 规则 | [04](references/04-dependency-versions.md) |
 | 6 发布核对 | 量包体、找死重量、验 release 构建 | [05](references/05-apk-size-audit.md) |
+| 附 **HTML 自验证** | 用无头浏览器逐屏渲染自己的 HTML 产出并读图自检 | [07](references/07-html-prototype-harness.md) |
 
 坑点速查（症状 → 根因 → 解法，40+ 条）：[06-pitfall-index.md](references/06-pitfall-index.md)
 
@@ -113,7 +114,8 @@ android-headless-devkit/
 │   ├── 03-device-verification.md   ★  无头模拟器装机验收闭环与 UI 验收清单
 │   ├── 04-dependency-versions.md      版本对齐、冲突诊断、R8 规则、许可准入
 │   ├── 05-apk-size-audit.md           体积构成、陈旧空洞、死依赖剔除
-│   └── 06-pitfall-index.md            坑点速查总表（40+ 条）
+│   ├── 06-pitfall-index.md            坑点速查总表（40+ 条）
+│   └── 07-html-prototype-harness.md   无头浏览器逐屏验证 HTML 产出
 ├── scripts/
 │   ├── env.ps1                       环境变量一键设置 + 体检
 │   ├── verify_loop.ps1               装→启→截图→查崩溃 一键闭环（带 adb 超时）
