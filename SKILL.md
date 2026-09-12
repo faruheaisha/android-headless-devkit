@@ -2,7 +2,7 @@
 name: android-headless-devkit
 description: "无 Android Studio 的 Android 全流程开发与真机验收工具包：只用命令行（JDK + Android SDK CLI + Gradle）从零搭出可编译、可安装、可看见的完整链路，并在无头模拟器上完成「构建 → 安装 → 截图 → 读图验收 → 查崩溃」闭环。关键能力是 Agent 能通过 adb 截图后读图，从而自己『看见』界面、独立发现并修掉只有肉眼才能发现的 UI 缺陷（布局留白、玻璃质感、RTL 渲染、返回键过小等），不必等用户截图反馈。Use when 需要 ①在 Windows 上从零装 Android 工具链（无 IDE、装到指定盘、绕开中文路径与代理）；②解决 Gradle 构建失败（内存/提交量崩溃、编译错误批量暴露、构建耗时预算）；③做 Android 真机或模拟器验证而不是只交代码——要截图看见界面、要查崩溃日志、要验 RTL/暗色/无障碍；④排查依赖与版本冲突（Compose BOM 与 Compose Multiplatform 库互相拉扯、activity 要求更高 compileSdk、R8 Missing class）；⑤做 APK 体积审计与死依赖剔除；⑥用无头浏览器对自己的 HTML 产出（交互原型、报告）逐屏渲染截图自检。即使只做其中一环（只装 SDK、只截图、只查版本冲突、只量包体、只渲染 HTML）也应使用本 skill。Not for: iOS/IPA、Flutter/React Native、Gradle 之外的构建系统（Bazel/Buck）、Play 上架流程与账号资质、Kotlin 语言语法教学、H5/小程序。Triggers: 无 Android Studio, 命令行装 Android SDK, sdkmanager, avdmanager, 模拟器无头, adb 截图, 真机验证, 装机验证, 界面验收, Android 构建失败, gradle OOM, mmap failed, 提交内存, 依赖冲突, Compose BOM, Haze 版本, R8, Missing class, APK 体积, 瘦身, 死依赖, 中文路径 gradle, ANDROID_HOME, WHPX, adb pull 失败, android headless, adb screencap, apk size audit, gradle build failed, 无头浏览器截图, headless chrome screenshot, HTML 原型验证, 逐屏截图, 交互设计验收."
 metadata:
-  version: "1.0.0"
+  version: "1.2.0"
   last_updated: "2026-09-12"
   status: active
   license: MIT

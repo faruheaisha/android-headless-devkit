@@ -37,6 +37,10 @@
 | B8 | 改了依赖但 APK 体积**没变化** | Gradle 增量打包未截断旧文件 → **陈旧空洞** | 删 APK 后只重跑打包（约 2 分钟）→ 见 [05](05-apk-size-audit.md) §4 |
 | B9 | 全量构建很慢（含大量纯逻辑模块） | **Compose 编译器插件被套在所有模块上** | 拆出独立的 compose 库插件，只给含界面的模块用（24 分钟 → 8.5 分钟） |
 | B10 | 构建日志刷屏看不清 | 未落文件 | `2>&1 \| Out-File -Encoding UTF8`，再 `Select-String` 筛 `BUILD SUCCESSFUL\|BUILD FAILED\|^e: ` 等；**用完删掉** |
+| B11 | **`find` 在联接路径下返回空，但 `ls` 明明有内容** | `find` **穿不过** Windows 目录联接（junction），`ls` 可以 | 别用 `find` 走联接；体积统计用 `du`/PowerShell 递归；判定联接用 `Get-Item \| Select LinkType, Target` |
+| B12 | 全盘扫描时**同一批文件被算了两次**（体积翻倍） | 扫描同时覆盖了真实路径与指向它的联接 | 只对**真实路径**操作；否则第二次会报"不存在"，让你误以为删除失败 |
+| B13 | 缓存目录删了之后**下次构建要重新下载依赖** | 误删了 `GRADLE_USER_HOME/caches/modules-2`（依赖仓库，非缓存） | 判据：**可再生**（本地算一遍）vs **需重新获取**（要联网）。`modules-2` 属后者，不要删 |
+| B14 | 清理报"释放 645MB"，但盘符可用只涨了 290MB | 正常：内容量与可用空间增量本就不同（期间其他进程在写盘、页面文件在涨） | **分别报两个数**，别把内容量当腾出的空间，也别因此以为删除失败 |
 
 ---
 
@@ -107,9 +111,12 @@
 
 | 搜这个 | 去哪 |
 |---|---|
-| `mmap failed` / 内存 / 提交内存 | [01](01-environment-setup.md) §5.2、[02](02-build-workflow.md) §3 |
+| `mmap failed` / 内存 / 提交内存 | [01](01-environment-setup.md) §5.3、[02](02-build-workflow.md) §3 |
 | `sdkmanager` / 许可 / 代理 / BOM | [01](01-environment-setup.md) |
+| 磁盘空间 / 缓存清理 / `modules-2` | [01](01-environment-setup.md) §5.2 |
 | 中文路径 / junction / 构建慢 / `--continue` | [02](02-build-workflow.md) |
+| `find` 联接返回空 / 重复计数 | [02](02-build-workflow.md) §1、本表 B11–B12 |
 | `adb` / 截图 / 模拟器 / ABI / RTL / UI 验收 | [03](03-device-verification.md) |
 | Compose BOM / Haze / 版本冲突 / 约定插件 / R8 / 许可 | [04](04-dependency-versions.md) |
 | 包体 / 瘦身 / 死依赖 / 空洞 / 体积 | [05](05-apk-size-audit.md) |
+| HTML 原型 / 无头浏览器截图 / 逐屏验证 | [07](07-html-prototype-harness.md) |
