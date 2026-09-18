@@ -4,6 +4,50 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.4.0] - 2026-09-18
+
+来自一次真实集成的经验：把 **109MB fp32 ONNX 语音合成模型**打进 APK，
+在中低端目标上离线推理。v1.3.0 已沉淀"资产许可/黄金夹具/密钥分层"，
+本版补上**推理集成层**的实操与实测数字。
+
+### Added
+
+- ★ **`references/10-onnx-model-bundling.md`（新文件）** —— **端侧大模型打包与推理集成**：
+  - 分发方式决策表（打包 / 首用下载 / 量化）；★ 量化是产品决策：
+    静态量化校准器对动态 shape 子图直接崩（fp32 推理正常），
+    `nodes_to_exclude` 绕不开——先跑再决定，别信默认直觉
+  - 资产三件事：`noCompress`（纯文件复制、无解压尖峰；包内核验 STORED + md5）、
+    首用拷贝到 `filesDir`（大小校验支持升级自动重拷、临时文件 rename）、
+    会话用**路径**加载（mmap）而非 `byte[]`（权重不重复进 Java 堆）
+  - ★ **会话参数 A/B（同机同输入）**：109MB VITS 上 `ALL_OPT` 会话创建 31.6s、
+    首句推理 43.1s → `BASIC_OPT`+4 线程 **5.7s / 8.1s**，稳态 4.1s/句。
+    教训：**图优化是会话创建的一次性成本，对大模型推理收益很小**；
+    "加载慢"与"推理慢"必须分开测量
+  - ★ **分词器逐 id 对拍**：special token（本例 ى=id 0）会改变切段方式，
+    "每字符插 pad"的直觉规则在多数句子上**巧合成立**、句首/句尾边界出错；
+    边界用例清单（句首/句尾/连续 special token、OOV、首尾空白、全 OOV）；
+    夹具入库 + 单测**直接断言随包资产**（防资产漂移）；上游分词库锁版本
+  - ★ **release 静态核对 + 同配置 debug 替身验证**：release 只打 arm64 →
+    x86_64 模拟器装不了 → 运行时行为用"同配置 debug 包"实拍，
+    release 做静态核对（生成 `BuildConfig.java` 逐字段、`apksigner verify`、
+    资产 STORED+md5、dex 搜引擎类名确认 keep 生效）；
+    ★ **debug 构建不跑 R8——keep 规则写错，debug 全绿也证明不了 release 没事**
+  - 首次体验：拷贝/加载/首句三段日志三连 + `isPreparing` 转圈可取消；
+    "首次慢是一次性的"写进文档，预加载才是提速方向
+- `references/06-pitfall-index.md` 新增 5 条：**A12**（AVD 数据分区 ~7GB 小盘建不出
+  → 挪盘步骤 + `-partition-size` 上限 2047MB）、**B15**（JVM 单测
+  `org.json.JSONObject not mocked` → `testImplementation` 真 org.json）、
+  **B16**（长构建被工具会话回收连坐 → `Start-Process` 脱离进程树 + 落日志轮询）、
+  **E7**（大资产 noCompress + STORED/md5 核验）、**E8**（R8 只在 release 跑 →
+  dex 静态核对引擎类名）；关键词索引同步
+
+### Changed
+
+- `SKILL.md`：六阶段表新增 **5c 端侧模型集成**；description 触发词追加
+  （ONNX Runtime / 端侧模型 / noCompress / 分词对拍 / not mocked / AVD 挪盘 等）；
+  `metadata.version` → 1.4.0
+- `README.md`：阶段表同步 5c 行
+
 ## [1.3.0] - 2026-09-18
 
 本版合并两批改动（第一批来自打通真实业务链路，第二批来自把环境/依赖与真机流程沉淀成基线）。

@@ -20,6 +20,7 @@
 | A9 | `emulator-check accel` 找不到 HAXM | Intel 11 代后已废弃 HAXM | 用 **WHPX**；`accel: 0` 即表示就绪 |
 | A10 | 找不到可用系统镜像 | 只装了 platforms 没装 system-image | `sdkmanager "system-images;android-33;google_apis;x86_64"` |
 | A11 | `cmd /c` / `[Diagnostics.Process]::Start` 被拦截 | 受限执行策略 | 用原生 PowerShell 调 `.bat`，或直接调 `java` |
+| A12 | `FATAL \| Not enough space to create userdata partition. Available: 2240.75 MB ..., need 7372.80 MB` | **AVD 数据分区默认 ~7GB**，小盘上建不出来；`-partition-size` 合法上限 **2047MB**，绕不过 | 把 AVD **挪到大容量盘**：整目录拷贝 `<名>.avd` + `<名>.ini`，改 `.ini` 里的 `path=` 与 `config.ini` 里的绝对路径，启动时 `ANDROID_AVD_HOME` 指向新目录 |
 
 ---
 
@@ -41,6 +42,8 @@
 | B12 | 全盘扫描时**同一批文件被算了两次**（体积翻倍） | 扫描同时覆盖了真实路径与指向它的联接 | 只对**真实路径**操作；否则第二次会报"不存在"，让你误以为删除失败 |
 | B13 | 缓存目录删了之后**下次构建要重新下载依赖** | 误删了 `GRADLE_USER_HOME/caches/modules-2`（依赖仓库，非缓存） | 判据：**可再生**（本地算一遍）vs **需重新获取**（要联网）。`modules-2` 属后者，不要删 |
 | B14 | 清理报"释放 645MB"，但盘符可用只涨了 290MB | 正常：内容量与可用空间增量本就不同（期间其他进程在写盘、页面文件在涨） | **分别报两个数**，别把内容量当腾出的空间，也别因此以为删除失败 |
+| B15 | JVM 单测报 `java.lang.RuntimeException: Method length in org.json.JSONObject not mocked` | 单测跑在 **android.jar 桩**上（org.json 只有抛异常的空壳） | 加 `testImplementation("org.json:json:20240303")`——真实实现类路径优先于桩；生产代码无需任何改动 |
+| B16 | 长构建中途报 `Gradle build daemon disappeared unexpectedly` + `client disconnection detected`，且没有编译错误 | **工具会话被回收时连坐了子进程**（构建是会话 shell 的子进程，一起被终止） | 长构建**脱离父进程树**再跑：`Start-Process -FilePath build.bat -ArgumentList ':app:assembleRelease' -WindowStyle Hidden`，日志落盘后轮询日志判断结束 |
 
 ---
 
@@ -100,6 +103,8 @@
 | E4 | `res/` 达 MB 级 | 资源未压缩 | `isShrinkResources = true` |
 | E5 | 只在发布时才崩 | 从未跑过 release 构建（R8 规则不全） | **首次 release 构建要提前做**，别等发版；`lintVitalAnalyzeRelease` 能拦住会崩的问题 |
 | E6 | 包体达标但"感觉不对" | 没区分 debug / release | 两个数字都要报，且**报告实测值** |
+| E7 | 大模型资产（.onnx/权重）首用特别慢，或首次拷贝时低端机卡顿 | 资产默认被 **deflate 压缩**：读的时候要流式解压（CPU+内存尖峰）；随机 float 权重压缩率还很低 | `androidResources { noCompress += "onnx" }`；核验：包内条目 `compress_type == 0`（STORED）且 **md5 与源文件一致**（→ [10](10-onnx-model-bundling.md) §2） |
+| E8 | debug 全绿，release 一跑推理就崩 | **R8 只在 release 跑**：JNI/反射引擎的 `-keep` 缺失时 debug 根本暴露不了 | release 静态核对：解包 `classes.dex` 搜引擎类名（如 `ai/onnxruntime/OrtSession`）确认保留；签名 `apksigner verify`；`BuildConfig.java` 逐字段核对开关（→ [10](10-onnx-model-bundling.md) §5） |
 
 ---
 
@@ -144,3 +149,8 @@
 | Compose BOM / Haze / 版本冲突 / 约定插件 / R8 / 许可 | [04](04-dependency-versions.md) |
 | 包体 / 瘦身 / 死依赖 / 空洞 / 体积 | [05](05-apk-size-audit.md) |
 | HTML 原型 / 无头浏览器截图 / 逐屏验证 | [07](07-html-prototype-harness.md) |
+| `not mocked` / org.json / 单测桩 | 本表 B15 |
+| `daemon disappeared` / 构建被会话回收 / `Start-Process` | 本表 B16 |
+| AVD 挪盘 / `userdata partition` / `partition-size` | 本表 A12 |
+| ONNX / 端侧模型 / noCompress / STORED / md5 / keep 规则静态核对 | [10](10-onnx-model-bundling.md)、本表 E7–E8 |
+| 分词器 / 逐 id 对拍 / 黄金夹具 / special token | [10](10-onnx-model-bundling.md) §4、[08](08-dependency-and-environment-baseline.md) §3 |

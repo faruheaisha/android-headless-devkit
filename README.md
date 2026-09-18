@@ -59,6 +59,7 @@ resolution, and APK size auditing.*
 | 4 修错回环 | 按"看得见的问题"改，改完**重新装机再验** | [03](references/03-device-verification.md) |
 | 5 **环境与依赖基线** | 环境变量参数化、依赖唯一出处、许可扫描、密钥不进包 | [08](references/08-dependency-and-environment-baseline.md) |
 | 5b 依赖版本对齐 | 版本冲突诊断、剔除无用依赖、R8 规则 | [04](references/04-dependency-versions.md) |
+| 5c ★ **端侧模型集成** | 大模型打进 APK：noCompress/首用拷贝/路径加载、会话参数 A/B、分词逐 id 对拍、release 静态核对 | [10](references/10-onnx-model-bundling.md) |
 | 6 发布核对 | 量包体、找死重量、验 release 构建 | [05](references/05-apk-size-audit.md) |
 | 7 ★ **真机终验** | 物理设备装机、日志驱动验收、回归清单、三类包差异 | [09](references/09-real-device-verification.md) |
 | 附 **HTML 自验证** | 用无头浏览器逐屏渲染自己的 HTML 产出并读图自检 | [07](references/07-html-prototype-harness.md) |
