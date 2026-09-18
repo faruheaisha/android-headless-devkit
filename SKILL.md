@@ -2,7 +2,7 @@
 name: android-headless-devkit
 description: "无 Android Studio 的 Android 全流程开发与真机验收工具包：只用命令行（JDK + Android SDK CLI + Gradle）从零搭出可编译、可安装、可看见的完整链路，并完成「环境与依赖基线 → 构建 → 安装 → 截图读图验收 → 走通功能链路 → 物理真机终验」闭环。关键能力有六：①Agent 能通过 adb 截图后读图，自己『看见』界面、独立发现并修掉只有肉眼才能发现的 UI 缺陷（布局留白、玻璃质感、RTL 渲染、返回键过小等）；②能靠 uiautomator UI 树取真实控件坐标、用 base64 参数注入绕开『adb 打不了中文』，把功能链路也自动跑通并留下可核对证据；③能分清『页面渲染正常』与『功能真的通了』，并识别一次成功到底走的哪条路径（网络/缓存/本地），避免把缓存命中误报成链路已通；④能把环境与依赖沉淀成『换机换人可照做』的基线——环境变量参数化、依赖唯一出处、许可扫描（含随包模型资产的独立许可）、密钥不进包与轮换验证；⑤能做物理真机验证——装机报错三分类（签名冲突/ABI/版本降级）、统一日志前缀与长链路三连证据、调试路由的 release 门控、回归清单、debug/release/benchmark 三类包差异，并坚持『模拟器与真机的结论不可互相外推』；⑥能用无头浏览器对自己的 HTML 产出（交互原型、报告）逐屏渲染截图自检。Use when 需要 ①在 Windows 上从零装 Android 工具链（无 IDE、装到指定盘、绕开中文路径与代理）；②解决 Gradle 构建失败（内存/提交量崩溃、编译错误批量暴露、构建耗时预算）；③做 Android 真机或模拟器验证而不是只交代码——要截图看见界面、要查崩溃日志、要验 RTL/暗色/无障碍、要走通真实业务链路、要做交付前真机终验；④排查依赖与版本冲突（Compose BOM 与 Compose Multiplatform 库互相拉扯、activity 要求更高 compileSdk、R8 Missing class）；⑤做依赖清单/环境基线/许可核查/密钥排查（API key 是否打进 APK、密钥泄露后怎么处置、随包模型许可）；⑥做 APK 体积审计与死依赖剔除；⑦用无头浏览器对自己的 HTML 产出逐屏渲染截图自检；⑧接入云端 API 时排查『界面正常但请求没发出』『模型返回空内容』『状态指示与实际能力不一致』这类只在运行期才暴露的问题。即使只做其中一环（只装 SDK、只截图、只查版本冲突、只量包体、只做依赖许可核查、只渲染 HTML）也应使用本 skill。Not for: iOS/IPA、Flutter/React Native、Gradle 之外的构建系统（Bazel/Buck）、Play 上架流程与账号资质、Kotlin 语言语法教学、H5/小程序。Triggers: 无 Android Studio, 命令行装 Android SDK, sdkmanager, avdmanager, 模拟器无头, adb 截图, exec-out screencap, uiautomator dump, 控件坐标, 真机验证, 真机终验, USB 调试, adb devices unauthorized, 装机验证, INSTALL_FAILED_UPDATE_INCOMPATIBLE, INSTALL_FAILED_NO_MATCHING_ABIS, 签名冲突, 界面验收, 功能链路验收, 端到端验证, 环境变量, 依赖清单, 许可核查, 第三方声明, API key 泄露, 密钥轮换, 随包模型许可, Android 构建失败, gradle OOM, mmap failed, 提交内存, 依赖冲突, Compose BOM, Haze 版本, R8, Missing class, APK 体积, 瘦身, 死依赖, 中文路径 gradle, ANDROID_HOME, WHPX, adb pull 失败, multiinstance.lock, SystemUI ANR, 关动画, android headless, adb screencap, apk size audit, gradle build failed, reasoning_effort, NET_CAPABILITY_VALIDATED, 无头浏览器截图, headless chrome screenshot, HTML 原型验证, 逐屏截图, 交互设计验收, ONNX Runtime, 端侧模型, 模型打包, 随包模型, noCompress, STORED, 分词对拍, 逐 id 对拍, special token, org.json not mocked, not mocked, AVD 挪盘, userdata partition, 模型加载慢, 推理首次慢."
 metadata:
-  version: "1.4.0"
+  version: "1.5.0"
   last_updated: "2026-09-18"
   status: active
   license: MIT
@@ -45,7 +45,7 @@ UI 问题 → 审计包体并剔掉 17.63MB 死重量」的全过程。
 | 走通功能链路 | ✅ | 给 App 加**仅 debug 生效的直启 + 参数入口**，绕开被系统对话框吞掉的连续点击 |
 | 操作 IDE 窗口 | ❌ | GUI 无接口 |
 
-## 六阶段工作流
+## 完整工作流
 
 ```
 阶段1 环境搭建   → 阶段2 构建打通   → 阶段3 装机验收
@@ -77,6 +77,7 @@ UI 问题 → 审计包体并剔掉 17.63MB 死重量」的全过程。
 | 5c **端侧模型集成** | 大模型资产打包（noCompress/首用拷贝/路径加载）、会话参数 A/B、分词逐 id 对拍、release 静态核对 | 实测时延 + 核对清单全绿 | [10-onnx-model-bundling.md](references/10-onnx-model-bundling.md) |
 | 6 发布核对 | 量包体、找死重量、验 release 构建 | 实测体积表 | [05-apk-size-audit.md](references/05-apk-size-audit.md) |
 | 7 **真机终验** | 物理设备装机、日志驱动验收、回归清单、三类包差异 | 真机结论（**标注不可外推**） | [09-real-device-verification.md](references/09-real-device-verification.md) |
+| 8 **运行期故障复盘** | 相机崩溃、开源裁剪、DOCX/PDF 流式解析、DocumentsUI、翻译路径判定 | 样本矩阵 + 证据包 | [11-runtime-case-study-camera-crop-document.md](references/11-runtime-case-study-camera-crop-document.md) |
 
 坑点速查（症状 → 根因 → 解法，一张表）：[06-pitfall-index.md](references/06-pitfall-index.md)
 
@@ -149,6 +150,11 @@ python scripts\apk_report.py "<apk>"
    同理，**持久化数据会让第二次跑与第一次不同** —— 验收脚本应 `pm clear` 回到零状态；
    而"要跨过缓存"的测试必须**换用全新输入**，不能复用同一份数据。
 
+6. **相机、裁剪和文档解析是运行期问题，不能用编译结果代替。**
+   相机页必须有异常回退；裁剪手势应优先复用成熟开源组件并固定版本/commit；DOCX 要按
+   流式 OOXML 解析，Android SAX feature 要按平台能力可选设置；PDF 文本层、逐页渲染和
+   OCR 回退是三条不同路径。详见 [11](references/11-runtime-case-study-camera-crop-document.md)。
+
 ## 保守优先的两条取舍原则
 
 这套流程在"该保守的地方保守、该激进的地方激进"上有一条明确界线：
@@ -176,7 +182,10 @@ android-headless-devkit/
 │   ├── 06-pitfall-index.md            坑点速查总表（症状→根因→解法）
 │   ├── 07-html-prototype-harness.md   用无头浏览器逐屏验证自己的 HTML 产出
 │   ├── 08-dependency-and-environment-baseline.md  ★ 环境/依赖/许可/密钥基线（换机可照做）
-│   └── 09-real-device-verification.md ★ 物理真机：装机·日志驱动验收·回归清单·三类包差异
+│   ├── 09-real-device-verification.md ★ 物理真机：装机·日志驱动验收·回归清单·三类包差异
+│   ├── 10-onnx-model-bundling.md      端侧模型：资产打包·会话参数·分词对拍·release 静态核对
+│   └── 11-runtime-case-study-camera-crop-document.md
+│                                      相机·裁剪·DOCX/PDF·DocumentsUI·翻译路径复盘
 ├── scripts/
 │   ├── env.ps1                       环境变量一键设置（含清空失效代理）
 │   ├── verify_loop.ps1               装→启→截图→查崩溃 一键闭环

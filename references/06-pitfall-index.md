@@ -70,6 +70,8 @@
 | C17 | `adb shell input text "中文"` 打不出字 | `input text` **不支持非 ASCII** | 用 `am start ... --es <key> "b64:<base64>"` 传，App 侧解码；前缀之外的按明文处理便于手敲 |
 | C18 | 首屏/某页截图是 20KB 空白图，同一脚本上一轮却正常 | force-stop 后**重启到首帧的时间不稳定**，固定 `sleep` 会截早 | **轮询等焦点**（`dumpsys window \| grep mCurrentFocus`）落到自家 App 后再 `sleep 3` |
 | C19 | 崩漏检测**误报** | 崩溃缓冲区里有 systemui 的 ANR 记录，且记录中**提到了当时的前台应用名** | 检索 **`FATAL EXCEPTION` / `AndroidRuntime`**，不要用应用名模糊匹配 |
+| C20 | 点拍照后应用强退或黑屏后退回桌面 | CameraX provider/selector/lifecycle 绑定竞态、权限未授予或设备无 Camera HAL，异常穿过 Compose 未被接住 | 权限→provider→绑定分层；绑定前 `unbindAll()`，离页解绑；捕获异常切到相册回退；分别归档目标包 crash buffer 和 SystemUI 噪声 |
+| C21 | 裁剪框缩小后再拖动没有变化、手感像卡住 | 自绘 `pointerInput` 因 selection 变化重启，或 View/图片/原图三套坐标混用 | 优先使用成熟裁剪组件；Compose 只持有稳定 View 和结果回调；固定跑“缩小×2/中心拖/角点拖/完成”四张截图 |
 
 ---
 
@@ -90,6 +92,8 @@
 | D11 | 发布包异常大 | **声明的依赖零代码引用** | 逐个大依赖核对源码引用；无引用则注释掉（→ [05](05-apk-size-audit.md) §3） |
 | D12 | 引入某库后**构建直接失败** | 该库依赖**已废弃的 RenderScript** 等被移除的机制 | 换库（选"三年后还在"的、有稳定版本线的） |
 | D13 | 老牌高星库在 Compose 项目里用不了 | 属**传统 View 体系**，与 Compose 不兼容 | 挑库看**技术代际**，不只看 star 数 |
+| D14 | Android DOCX 解析报 `UnsupportedOperationException` / `Unknown version "0.0"` | Android Expat 对 `SAXParserFactory.isXIncludeAware` 等 feature 支持不完整 | 安全 feature 逐项 `runCatching`；不因 feature 缺失放弃 XXE/DTD 样本回归；解析器用 SAX/XmlPullParser 流式读取 |
+| D15 | DOCX 解析“能跑”但 APK 暴涨或真机缺类 | 把 Apache POI 当 runtime 依赖，或只在 JVM 测试验证，未做 Android/包体门禁 | POI 只作为 benchmark 对照器，主线使用轻量 OOXML 流式解析；若要合入必须锁版本、扫许可、测 APK/PSS/损坏/恶意 ZIP |
 
 ---
 
@@ -123,6 +127,8 @@
 | F9 | 第二次跑同一验收脚本，结果与第一次不同 | **持久化数据残留**（缓存/历史/已授权状态） | 装包后 `pm clear` 回到零状态；**测试要跨状态时用全新输入**，不要复用同一份数据 |
 | F10 | 状态指示与实际能力不一致（如"显示离线但功能可用"） | 判定口径依赖了**本地网络探测**（Android 的 `NET_CAPABILITY_VALIDATED` 要打 `www.google.com`，境内被阻断 → 恒为 false） | 判定"是否在线"只看 `NET_CAPABILITY_INTERNET`；并确保**状态指示永不 gate 功能**（只提示，不拦截） |
 | F11 | 模型返回**空内容**，用户看到"点了没反应" | **推理模型的思考链占满了 `max_tokens`**，`content` 被挤成空串 | 翻译/抽取这类不需推理的任务显式关思考（`reasoning_effort=none`）。实测同一句：默认 2103 token / 8.7s → 关闭后 360 token / 3.4s |
+| F12 | DocumentsUI 选完 DOCX/PDF 后回到 App 仍显示“无法解析” | 只测了内部文件路径，没有真正处理 `content://` URI 的权限、复制和临时文件失败 | 真选一遍文件；记录 URI/MIME/字节数/SHA；复制到私有目录后再解析；把选择器放在验收序列最后 |
+| F13 | 页面显示“无法翻译”，但原因不明；或显示成功却没有网络日志 | 未区分代理不可达、HTTP 协议错误、空内容、缓存/本地回退 | 日志三连记录准备/请求/完成，并给 `path=network|cache|fallback`；新输入 + `pm clear`；没有真实服务端时结论写“未验证” |
 
 ---
 
@@ -143,6 +149,11 @@
 | 点不中按钮 / EditText 比按钮宽 / UI 树定位 | 本表 C16 |
 | 截图空白 / 轮询焦点 / 首帧 | 本表 C18 |
 | 崩溃误报 / systemui ANR 记录 | 本表 C19 |
+| 相机强退 / CameraX / 无摄像头 / 相册回退 | 本表 C20、[11](11-runtime-case-study-camera-crop-document.md) §2 |
+| 裁剪框卡顿 / 缩小后拖不动 / CanHub / 坐标 | 本表 C21、[11](11-runtime-case-study-camera-crop-document.md) §3 |
+| DOCX SAX / `Unknown version "0.0"` / POI 包体 | 本表 D14–D15、[11](11-runtime-case-study-camera-crop-document.md) §4 |
+| DocumentsUI / `content://` / 无法解析 | 本表 F12、[11](11-runtime-case-study-camera-crop-document.md) §4.4 |
+| 无法翻译 / 空内容 / 网络与缓存路径 | 本表 F13、[11](11-runtime-case-study-camera-crop-document.md) §5 |
 | 功能验证 / 缓存命中 / 降级链 / `pm clear` | 本表 F8–F9 |
 | 状态指示不一致 / `NET_CAPABILITY_VALIDATED` | 本表 F10 |
 | 模型返回空 / 思考链 / `reasoning_effort` | 本表 F11 |

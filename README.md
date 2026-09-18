@@ -48,7 +48,7 @@ resolution, and APK size auditing.*
 | 包体 | debug **65.80MB** / release **2.80MB**（剔除死依赖后缩小 7.3 倍） |
 | release 构建 | 首次实跑 R8 通过，零 `Missing class` |
 
-## 六阶段工作流
+## 完整工作流
 
 | 阶段 | 做什么 | 对应 reference |
 |---|---|---|
@@ -62,9 +62,14 @@ resolution, and APK size auditing.*
 | 5c ★ **端侧模型集成** | 大模型打进 APK：noCompress/首用拷贝/路径加载、会话参数 A/B、分词逐 id 对拍、release 静态核对 | [10](references/10-onnx-model-bundling.md) |
 | 6 发布核对 | 量包体、找死重量、验 release 构建 | [05](references/05-apk-size-audit.md) |
 | 7 ★ **真机终验** | 物理设备装机、日志驱动验收、回归清单、三类包差异 | [09](references/09-real-device-verification.md) |
+| 8 ★ **运行期故障复盘** | 相机崩溃、成熟裁剪组件、DOCX/PDF 流式解析、DocumentsUI、网络/缓存/回退判定 | [11](references/11-runtime-case-study-camera-crop-document.md) |
 | 附 **HTML 自验证** | 用无头浏览器逐屏渲染自己的 HTML 产出并读图自检 | [07](references/07-html-prototype-harness.md) |
 
 坑点速查（症状 → 根因 → 解法，60+ 条）：[06-pitfall-index.md](references/06-pitfall-index.md)
+
+最新案例章：[11-runtime-case-study-camera-crop-document.md](references/11-runtime-case-study-camera-crop-document.md)。
+它把一次真实应用的相机强退、裁剪框卡顿、DOCX Android SAX 兼容性、PDF 扫描回退、
+DocumentsUI 真路径和“缓存伪装成功”复盘成可直接套用的验证顺序；其中模拟器结论不会外推到物理真机。
 
 > **模拟器与真机各有一篇，结论不可互相外推**：
 > 无头模拟器（[03](references/03-device-verification.md)）适合每轮自动化回归；

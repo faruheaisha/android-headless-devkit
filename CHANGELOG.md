@@ -4,6 +4,26 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.5.0] - 2026-09-18
+
+来自一次真实 Android 应用的运行期回归：相机入口强退、裁剪框缩小后拖动失效、DOCX
+在 Android Expat 上的 SAX 兼容性、PDF 文本层/扫描页分流、DocumentsUI 真路径，以及
+“无法翻译”到底是服务不可达、空响应还是缓存命中。重点是把这些问题写成可复现的证据门，
+而不是再增加一层静态代码推断。
+
+### Added
+
+- `references/11-runtime-case-study-camera-crop-document.md`：相机异常回退、成熟开源裁剪组件、
+  DOCX/PDF 流式解析、URI 文件选择、翻译路径分类和完整验证顺序。
+- `references/06-pitfall-index.md` 新增 C20–C21、D14–D15、F12–F13：CameraX 生命周期、
+  自绘手势坐标、Android SAX `Unknown version "0.0"`、POI runtime 包体、DocumentsUI URI 和
+  “无法翻译”假象。
+
+### Changed
+
+- `SKILL.md` / `README.md` 工作流增加运行期故障复盘阶段，metadata 版本升至 1.5.0。
+- 明确模拟器证据不能外推到真机；真实 Camera HAL、双指 pinch、厂商 ROM 和公网翻译服务必须单列为未验证项。
+
 ## [1.4.0] - 2026-09-18
 
 来自一次真实集成的经验：把 **109MB fp32 ONNX 语音合成模型**打进 APK，
