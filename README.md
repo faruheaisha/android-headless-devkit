@@ -41,9 +41,11 @@ resolution, and APK size auditing.*
 | 工具链 | 全装在单盘、自包含、不依赖 Android Studio |
 | 构建 | `BUILD SUCCESSFUL`，0 错误 0 警告 |
 | 单元测试 | 16 个用例全通过，耗时 **0.05 秒**（纯 JVM，无需模拟器） |
-| 装机验收 | Android 13 模拟器上安装、启动、截图、无崩溃 |
+| 装机验收 | Android 13 模拟器上 9 屏全部截图核对、无崩溃 |
 | 裸眼发现并修掉的 UI 问题 | **5 个**（状态栏重叠、玻璃质感消失、卡片暗环、布局留白、返回键过小） |
-| 包体 | debug **65.26MB** / release **2.80MB**（剔除死依赖后缩小 7.3 倍） |
+| ★ 功能链路验收 | **端到端跑通**（源语言 → 云端大模型 → 目标语言），并用日志证明请求真的发出 |
+| ★ 接线导致的缺陷 | 修掉 **1 个**：联网时误报"需要联网"（`NET_CAPABILITY_VALIDATED` 在受限网络下误判） |
+| 包体 | debug **65.80MB** / release **2.80MB**（剔除死依赖后缩小 7.3 倍） |
 | release 构建 | 首次实跑 R8 通过，零 `Missing class` |
 
 ## 六阶段工作流
@@ -53,12 +55,20 @@ resolution, and APK size auditing.*
 | 1 环境搭建 | 装 JDK + SDK CLI + 建 AVD，绕过代理/编码/磁盘三类坑 | [01](references/01-environment-setup.md) |
 | 2 构建打通 | 中文路径、内存崩溃、排障方法论、耗时预算 | [02](references/02-build-workflow.md) |
 | 3 **装机验收** | 无头模拟器：装→启→截图→**读图**→查崩溃 | [03](references/03-device-verification.md) |
+| 3b ★ **链路验收** | 不止"页面能渲染"：功能真能跑通，并分清走的是网络/缓存/本地 | [03](references/03-device-verification.md) §9 |
 | 4 修错回环 | 按"看得见的问题"改，改完**重新装机再验** | [03](references/03-device-verification.md) |
-| 5 依赖收口 | 版本对齐、剔除无用依赖、R8 规则 | [04](references/04-dependency-versions.md) |
+| 5 **环境与依赖基线** | 环境变量参数化、依赖唯一出处、许可扫描、密钥不进包 | [08](references/08-dependency-and-environment-baseline.md) |
+| 5b 依赖版本对齐 | 版本冲突诊断、剔除无用依赖、R8 规则 | [04](references/04-dependency-versions.md) |
 | 6 发布核对 | 量包体、找死重量、验 release 构建 | [05](references/05-apk-size-audit.md) |
+| 7 ★ **真机终验** | 物理设备装机、日志驱动验收、回归清单、三类包差异 | [09](references/09-real-device-verification.md) |
 | 附 **HTML 自验证** | 用无头浏览器逐屏渲染自己的 HTML 产出并读图自检 | [07](references/07-html-prototype-harness.md) |
 
-坑点速查（症状 → 根因 → 解法，40+ 条）：[06-pitfall-index.md](references/06-pitfall-index.md)
+坑点速查（症状 → 根因 → 解法，60+ 条）：[06-pitfall-index.md](references/06-pitfall-index.md)
+
+> **模拟器与真机各有一篇，结论不可互相外推**：
+> 无头模拟器（[03](references/03-device-verification.md)）适合每轮自动化回归；
+> 物理真机（[09](references/09-real-device-verification.md)）用于交付前终验。
+> 模拟器是纯软件执行，时延天然偏慢；厂商 ROM 的权限与后台策略只在真机出现。
 
 ## 快速开始
 
@@ -90,7 +100,7 @@ python .\validate_skill.py    # SKILL.md 的 18 项结构断言
 > 这条能力边界直接改变协作分工：**RTL 渲染、玻璃质感、布局留白这类"必须用眼睛验收"
 > 的东西，也可以自己验，不必等用户截图反馈。**
 
-## 两条硬性纪律
+## 三条硬性纪律
 
 1. **不实跑就发现不了的 bug 占多数。** 凡涉及构建配置，必须实跑验证再声称完成。
    本仓库的 `verify_loop.ps1` 自身就是这条纪律的产物 —— 它的两个真 bug
@@ -98,6 +108,10 @@ python .\validate_skill.py    # SKILL.md 的 18 项结构断言
 2. **汇报要区分"已验证"与"未验证"。**
    编译通过 ≠ 单测通过 ≠ 装机运行 ≠ 界面验收 ≠ 功能可用，
    五档分别需要不同证据，不能把前三档说成第五档。
+3. **"功能成功了"要追问走的是哪条路径。**
+   接过后端、带缓存或降级链的应用里，界面显示成功**不等于**你以为的那条链路通了 ——
+   它可能来自网络、缓存或本地兜底。不追问，就会把"缓存命中"写成"链路已通"。
+   详见 [03](references/03-device-verification.md) §9.2。
 
 ## 目录
 
@@ -111,11 +125,13 @@ android-headless-devkit/
 ├── references/
 │   ├── 01-environment-setup.md        装 JDK/SDK/AVD，代理·编码·磁盘三类坑
 │   ├── 02-build-workflow.md           构建打通、中文路径、内存崩溃、耗时预算
-│   ├── 03-device-verification.md   ★  无头模拟器装机验收闭环与 UI 验收清单
-│   ├── 04-dependency-versions.md      版本对齐、冲突诊断、R8 规则、许可准入
+│   ├── 03-device-verification.md   ★  无头模拟器：UI 渲染 + 功能链路 + 状态指示一致性
+│   ├── 04-dependency-versions.md      版本对齐、冲突诊断、R8 规则
 │   ├── 05-apk-size-audit.md           体积构成、陈旧空洞、死依赖剔除
-│   ├── 06-pitfall-index.md            坑点速查总表（40+ 条）
-│   └── 07-html-prototype-harness.md   无头浏览器逐屏验证 HTML 产出
+│   ├── 06-pitfall-index.md            坑点速查总表（60+ 条）
+│   ├── 07-html-prototype-harness.md   无头浏览器逐屏验证 HTML 产出
+│   ├── 08-dependency-and-environment-baseline.md  ★ 环境/依赖/许可/密钥基线
+│   └── 09-real-device-verification.md ★ 物理真机：装机·日志验收·回归清单·三类包差异
 ├── scripts/
 │   ├── env.ps1                       环境变量一键设置 + 体检
 │   ├── verify_loop.ps1               装→启→截图→查崩溃 一键闭环（带 adb 超时）

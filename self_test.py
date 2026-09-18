@@ -169,7 +169,7 @@ def main():
 
     # ---- 测试 5：真实 APK（若存在则顺带验一遍）----
     print("\n[5] 真实 APK 冒烟（可选）")
-    real = r"E:\ugapp\app\build\outputs\apk\release\app-release-unsigned.apk"
+    real = r"E:\proj\app\build\outputs\apk\release\app-release-unsigned.apk"
     if os.path.isfile(real):
         r = ar.analyze(real)
         ck.check(r["size_bytes"] > 0, f"能读真实 release 包（{r['size_human']}）")

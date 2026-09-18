@@ -57,6 +57,16 @@
 | C7 | E 盘/磁盘莫名少了几 GB | **强杀模拟器留下 `ram.img`（约 2GB 快照残留）** | 优先 `adb emu kill` **优雅关闭**；残留确认进程已停后删除（下次启动自动重建） |
 | C8 | 不知道点哪里 | `input tap` 是**盲点**，坐标靠估算 | 先截图**从图上量坐标** → 点 → **再截图确认** |
 | C9 | 装机失败 | — | 三步分开确认：`install` 成功 → 进程存在（`pidof`）→ 崩溃缓冲区为空 |
+| C10 | 模拟器**完全起不来**，无任何报错 | 上次被强杀留下 **`multiinstance.lock`**（0 字节），模拟器据此认为已有实例在跑 | 确认无 qemu 进程后删掉 `<avd>.avd/multiinstance.lock`；脚本里做成启动前自愈 |
+| C11 | 模拟器**随任务结束一起消失** | 跨任务启动的后台进程会被回收 | 模拟器必须与整条流程**在同一个任务内**启动并保持存活 |
+| C12 | 后续 `am start` 全部无效，截图总是同一个界面 | **系统文件选择器/相册是独立进程**，`am force-stop` 自家 App 杀不掉它，它会一直占住前台 | 把"会拉起系统选择器"的页面**排在验收序列最后** |
+| C13 | SystemUI 弹 `isn't responding`，**模态对话框吞掉后续所有点击** | 无头 + 软件 GPU 下渲染负载高，SystemUI 卡死。报的是 `System UI` 不是自家 App | ①关动画降压（三个 `*_animation_scale` 置 0）；②每次点击前先确认焦点在自家 App；③必要时给 App 加**仅 debug 生效的页面直启入口**绕开连续点击 |
+| C14 | `uiautomator dump` 失败 / `pull` 拿不到文件 | 清空 userdata 后 **`/sdcard` 未重新挂载、不可写** | dump 落到 **`/data/local/tmp`**；截图用 `adb exec-out screencap -p > file`（走 shell 重定向，不依赖设备侧文件） |
+| C15 | `adb pull` 报找不到路径（`/c/...`） | **`adb.exe` 是 Windows 程序，读不懂 Git Bash 的 `/c/...` 形式** | 交给 adb / python.exe 的路径一律用 `C:/...` 形式；只有 bash 自己用的路径才写 `/c/...` |
+| C16 | **主操作按钮点不中**，总会弹出键盘 | 用"最宽的可点元素"识别按钮 —— 但**输入框比按钮还宽**（实测 EditText w=890 vs 按钮 w=795） | 提取 clickable 节点时**排除 `EditText`**，再取最宽者 |
+| C17 | `adb shell input text "中文"` 打不出字 | `input text` **不支持非 ASCII** | 用 `am start ... --es <key> "b64:<base64>"` 传，App 侧解码；前缀之外的按明文处理便于手敲 |
+| C18 | 首屏/某页截图是 20KB 空白图，同一脚本上一轮却正常 | force-stop 后**重启到首帧的时间不稳定**，固定 `sleep` 会截早 | **轮询等焦点**（`dumpsys window \| grep mCurrentFocus`）落到自家 App 后再 `sleep 3` |
+| C19 | 崩漏检测**误报** | 崩溃缓冲区里有 systemui 的 ANR 记录，且记录中**提到了当时的前台应用名** | 检索 **`FATAL EXCEPTION` / `AndroidRuntime`**，不要用应用名模糊匹配 |
 
 ---
 
@@ -104,6 +114,10 @@
 | F5 | 交付一堆中间文件 | 用户无从下手 | 删临时文件，**只留最终交付物**，并说明用途与下一步 |
 | F6 | 为迁就一个依赖升级整条工具链 | 连锁回归风险 | **保守优先**：锁低版本 |
 | F7 | 交付里留"待办/TBD/风险"占位 | 用户仍需自己收尾 | 一次性给到可执行结论；确实未决的**明确列出并给出建议** |
+| F8 | **把"功能成功"误判为失败，或反之** | 只看单一信号。带缓存/降级的系统里，一次"成功"可能走了完全不同的路径 | 区分**走了网络 / 命中缓存 / 真失败**三种，各自的证据不同。只看"有没有网络日志"会把缓存命中报成失败 |
+| F9 | 第二次跑同一验收脚本，结果与第一次不同 | **持久化数据残留**（缓存/历史/已授权状态） | 装包后 `pm clear` 回到零状态；**测试要跨状态时用全新输入**，不要复用同一份数据 |
+| F10 | 状态指示与实际能力不一致（如"显示离线但功能可用"） | 判定口径依赖了**本地网络探测**（Android 的 `NET_CAPABILITY_VALIDATED` 要打 `www.google.com`，境内被阻断 → 恒为 false） | 判定"是否在线"只看 `NET_CAPABILITY_INTERNET`；并确保**状态指示永不 gate 功能**（只提示，不拦截） |
+| F11 | 模型返回**空内容**，用户看到"点了没反应" | **推理模型的思考链占满了 `max_tokens`**，`content` 被挤成空串 | 翻译/抽取这类不需推理的任务显式关思考（`reasoning_effort=none`）。实测同一句：默认 2103 token / 8.7s → 关闭后 360 token / 3.4s |
 
 ---
 
@@ -117,6 +131,16 @@
 | 中文路径 / junction / 构建慢 / `--continue` | [02](02-build-workflow.md) |
 | `find` 联接返回空 / 重复计数 | [02](02-build-workflow.md) §1、本表 B11–B12 |
 | `adb` / 截图 / 模拟器 / ABI / RTL / UI 验收 | [03](03-device-verification.md) |
+| `multiinstance.lock` / 模拟器起不来 / 跨任务被回收 | 本表 C10–C11 |
+| SystemUI ANR / 对话框吞点击 / 关动画 / 页面直启 | 本表 C13 |
+| `/sdcard` 不可写 / `exec-out` / uiautomator dump | 本表 C14 |
+| `input text` 打不了中文 / base64 传参 | 本表 C17 |
+| 点不中按钮 / EditText 比按钮宽 / UI 树定位 | 本表 C16 |
+| 截图空白 / 轮询焦点 / 首帧 | 本表 C18 |
+| 崩溃误报 / systemui ANR 记录 | 本表 C19 |
+| 功能验证 / 缓存命中 / 降级链 / `pm clear` | 本表 F8–F9 |
+| 状态指示不一致 / `NET_CAPABILITY_VALIDATED` | 本表 F10 |
+| 模型返回空 / 思考链 / `reasoning_effort` | 本表 F11 |
 | Compose BOM / Haze / 版本冲突 / 约定插件 / R8 / 许可 | [04](04-dependency-versions.md) |
 | 包体 / 瘦身 / 死依赖 / 空洞 / 体积 | [05](05-apk-size-audit.md) |
 | HTML 原型 / 无头浏览器截图 / 逐屏验证 | [07](07-html-prototype-harness.md) |

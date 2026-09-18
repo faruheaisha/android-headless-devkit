@@ -11,7 +11,7 @@
 ### 现象
 
 ```
-The specified project directory 'E:\claude code\爸妈专用翻译\app-project' does not exist
+The specified project directory 'D:\工作\我的项目\app' does not exist
 ```
 
 **路径明明存在**，但 Gradle 说找不到。
@@ -24,24 +24,26 @@ The specified project directory 'E:\claude code\爸妈专用翻译\app-project' 
 ### 解法：建 ASCII 目录联接（junction）做透明桥接
 
 ```powershell
-New-Item -ItemType Junction -Path "E:\ugapp" -Target "E:\claude code\爸妈专用翻译\app-project"
+# 别名与目标都按自己的实际情况替换：<别名> 必须纯 ASCII
+New-Item -ItemType Junction -Path "E:\proj" -Target "D:\工作\我的项目\app"
 ```
 
 之后构建一律用 ASCII 别名：
 
 ```powershell
-gradle -p E:\ugapp :app:assembleDebug
+gradle -p E:\proj :app:assembleDebug
 ```
 
 **要点**：
 
 - 用 **Junction**（目录联接）而非符号链接 —— 不需要管理员权限
 - **用户文件的实际位置完全不变**，联接只是透明别名
-- 这是 **Android 构建在中文路径下的通用解法**，不止本机适用
+- 这是 **Android 构建在中文路径下的通用解法**，不止某台机器适用
 - 同理，`adb pull` 的目标路径也必须 ASCII（见 [03](03-device-verification.md)）
 
-> 附带好处：整个工具链（`E:\AndroidDev`）与构建入口（`E:\ugapp`）都在 ASCII 路径上，
-> 后续所有命令都不必再操心编码问题。
+> 附带好处：工具链（`E:\AndroidDev`，本 skill 默认值）与构建入口（`E:\proj`）
+> 都在 ASCII 路径上，后续所有命令都不必再操心编码问题。
+> 本文其余示例统一用 `E:\proj` 代指**你为项目建的 ASCII 联接**。
 
 ### ⚠️ 建了联接之后必然踩到的坑：`find` 穿不过 junction
 
@@ -55,11 +57,11 @@ gradle -p E:\ugapp :app:assembleDebug
 
 **两个由此产生的假象**（都会误导判断）：
 
-1. **"这个目录是空的"** —— `find /e/ugapp -maxdepth 1 -type f` 返回空，
-   而 `ls -la /e/ugapp/` 明明列出十几个文件。
+1. **"这个目录是空的"** —— `find /e/proj -maxdepth 1 -type f` 返回空，
+   而 `ls -la /e/proj/` 明明列出十几个文件。
    → 别据此认为目录为空，**体积统计用 `du`/PowerShell 递归，不要用 `find` 走联接**。
 2. **"同一批文件被算了两次"** —— 如果扫描同时覆盖真实路径与联接路径
-   （例如 `E:\` 全盘扫描，里面既有 `app-project` 又有 `E:\ugapp`），
+   （例如全盘扫描时，真实项目目录与指向它的联接目录同时被扫到），
    同一个 `build/` 目录会被计入两次，体积翻倍。
    → 清理时**只对真实路径操作**；否则第二次会报"不存在"，让你误以为删除失败。
 
@@ -67,13 +69,13 @@ gradle -p E:\ugapp :app:assembleDebug
 
 ```bash
 # Git Bash：`ls -d` 能显示，而 find 穿不过 —— 两者结果不一致即是联接
-ls -d /e/ugapp
+ls -d /e/proj
 
 # PowerShell 更明确（会打印 LinkType）
-Get-Item "E:\ugapp" | Select-Object Name, LinkType, Target
+Get-Item "E:\proj" | Select-Object Name, LinkType, Target
 ```
 
-> **实践建议**：把联接只当作**构建入口**（`gradle -p E:\ugapp`），
+> **实践建议**：把联接只当作**构建入口**（`gradle -p E:\proj`），
 > 不要把它当"第二份项目"来扫描或清理。所有文件操作都走真实路径。
 
 ---
@@ -91,9 +93,9 @@ $env:GRADLE_USER_HOME = "E:\AndroidDev\gradle-home"
 $env:HTTP_PROXY=""; $env:HTTPS_PROXY=""; $env:http_proxy=""; $env:https_proxy=""
 
 # ---- 构建 ----
-& "E:\AndroidDev\gradle-8.9\bin\gradle.bat" -p "E:\ugapp" ":app:assembleDebug" --no-daemon
-& "E:\AndroidDev\gradle-8.9\bin\gradle.bat" -p "E:\ugapp" ":app:assembleRelease" --no-daemon
-& "E:\AndroidDev\gradle-8.9\bin\gradle.bat" -p "E:\ugapp" ":core:domain:test" --no-daemon
+& "E:\AndroidDev\gradle-8.9\bin\gradle.bat" -p "E:\proj" ":app:assembleDebug" --no-daemon
+& "E:\AndroidDev\gradle-8.9\bin\gradle.bat" -p "E:\proj" ":app:assembleRelease" --no-daemon
+& "E:\AndroidDev\gradle-8.9\bin\gradle.bat" -p "E:\proj" ":core:domain:test" --no-daemon
 ```
 
 ### 输出捕获（日志很长，必须落文件再筛）
