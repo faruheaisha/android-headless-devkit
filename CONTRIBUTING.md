@@ -82,34 +82,66 @@ python .\validate_skill.py     # SKILL.md 的 18 项结构断言应全通过
 **四类模式，逐一扫，要求 0 命中**：
 
 ```bash
-# ① 密钥
-grep -rnE "sk-[A-Za-z0-9]{16,}|api[_-]?key\s*=\s*\S+|Bearer [A-Za-z0-9]{16,}" . \
-  | grep -v "\.git/"
+# ① 密钥 —— ★ 判据要"像真密钥"，而不是"出现过 sk-"
+#    写成 sk-[A-Za-z0-9]{16,} 会命中说明性文本（如「判据：sk-... 长密钥 0 处」）
+grep -rnE "sk-[A-Za-z0-9]{16,}" . \
+  | grep -v "\.git/" | grep -v "CONTRIBUTING.md"
 
 # ② 应用包名 / 应用名（把自己项目的名字加进去）
 grep -rniE "com\.[a-z]+\.[a-z]+|<你的项目名>|<你的应用名>" . \
-  | grep -v "\.git/" \
+  | grep -v "\.git/" | grep -v "CONTRIBUTING.md" \
   | grep -vE "com\.(android|google|example|squareup|airbnb|jakewharton)"
 
 # ③ 端点 / 域名 —— ★ 用白名单，不用黑名单
-#    文档与徽章必然会引用一批公开站点，把它们列入白名单；
-#    白名单之外的一律人工复查。
 grep -rniE "https?://[a-z0-9.-]+\.[a-z]{2,}" . \
-  | grep -v "\.git/" \
+  | grep -v "\.git/" | grep -v "CONTRIBUTING.md" \
   | grep -vE "shields\.io|learn\.microsoft\.com|python\.org|agentskills\.io" \
   | grep -vE "github\.com|githubusercontent\.com|maven|google\.com|android\.com" \
   | grep -vE "gradle\.org|kotlinlang\.org|semver\.org|keepachangelog\.com" \
   | grep -vE "adoptium\.net|huaweicloud\.com"
 
-# ④ 本机绝对路径（用户名、含中文的目录）
-grep -rnE "[A-Z]:\\\\Users|/c/Users" . | grep -v "\.git/"
-grep -rnE "[A-Z]:\\\\[^\\\\]*[一-龥]" . | grep -v "\.git/"
+# ④ 本机绝对路径 —— ★ 要求用户名是"真值"，不是占位符
+grep -rnE "[A-Z]:\\\\Users\\\\[^<>%]" . \
+  | grep -v "\.git/" | grep -v "CONTRIBUTING.md"
+grep -rnE "/c/Users/[^<>%]" . \
+  | grep -v "\.git/" | grep -v "CONTRIBUTING.md"
+grep -rnE "[A-Z]:\\\\[^\\\\]*[一-龥]" . \
+  | grep -v "\.git/" | grep -v "CONTRIBUTING.md"
 ```
 
-> **为什么 ③ 要用白名单**：一开始写成"排除几个已知源"的黑名单，
-> 结果徽章图片和标准文档链接全被报出来（`img.shields.io`、`agentskills.io` 等）。
-> **一条会误报的规则等于没有规则** —— 跑两次全是噪音，第三次就没人跑了。
-> 白名单的维护成本高一点，但它给出的每一条命中都值得看。
+> 四个管道末尾都带 `grep -v "CONTRIBUTING.md"` —— 见下方"为什么必须排除规则文档自身"。
+
+### ★ 为什么 ③ 用白名单，不用黑名单
+
+一开始写成"排除几个已知源"的黑名单，结果徽章图片和标准文档链接
+（`img.shields.io`、`agentskills.io` 等）全被报出来。
+**一条会误报的规则等于没有规则** —— 跑两次全是噪音，第三次就没人跑了。
+白名单的维护成本高一点，但它给出的每一条命中都值得看。
+
+### ★ 为什么必须排除规则文档自身
+
+`CONTRIBUTING.md` 里必然写着上面这些 grep 模式（`sk-`、`c/Users` 等），
+不排除就**稳定产生假阳性**。这不是"规则文档不算泄漏"这么简单 ——
+它意味着**审计输出里永远有固定噪音，训练使用者忽略它**。
+
+### ★ 两次迭代才把误报降下来
+
+第一版规则（用 `sk-`、`apiKey=`、`/c/Users` 这类宽松模式）在真实仓库上跑出 **5 处命中**，
+逐个查看后发现**全是规则文本与占位符示例**，没有一处是真泄漏：
+
+| 命中位置 | 实际内容 | 判定 |
+|---|---|---|
+| 规则文档里的 grep 正则 | `sk-[A-Za-z0-9]{16,}` | 规则文本 |
+| 环境文档 | `C:\Users\<用户>\.gradle` | 占位符（`<用户>`） |
+| 基线文档 | 「判据：`sk-...` 长密钥 0 处」 | 说明性文本 |
+| 基线文档 | `<provider>.apiKey=...` | 占位符示例 |
+
+**这就是本文件那条"会误报的规则等于没有规则"的实例** ——
+写下它之后我自己立刻犯了一次。修法：把判据从"出现过关键词"收紧为
+**"像真值"**（密钥要够长、路径里的用户名不能是占位符），并显式排除规则文档。
+
+> **可复用的教训**：写检查规则时，先想"它在**正确的**代码库上跑会报什么"。
+> 一条在干净库上就有假阳性的规则，上线后会被当成噪音忽略掉。
 
 ### 判定规则
 
