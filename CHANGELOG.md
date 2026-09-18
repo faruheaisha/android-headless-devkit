@@ -127,6 +127,17 @@ skill 原来只教到"页面能渲染"，而真正决定产品可用的是"功�
 - ★ `PRIVACY_MARKS` 用环境变量注入而非写在脚本里 ——
   这里有个绕不开的矛盾：脚本要知道"查什么"，但脚本本身在公开仓库里，
   把真实项目名写进去等于用脚本自己完成泄漏。公开那份留空，真实值本地/CI 传。
+- CONTRIBUTING 新增"推送通道与历史对齐"一节 ——
+  记录 `git push` 被网络重置时的兜底路径（顺 `gh` 走 Git Data API：
+  blob -> tree -> commit -> ref），三条要点：
+  ① `base_tree` 必须用**远端的** tree（否则会覆盖远端其他文件）；
+  ② 推送前后**校验 tree 一致**（`git rev-parse HEAD^{tree}` 应等于 API 返回的新 tree）——
+  这是无法 `git fetch` 时唯一能证明"远端内容 == 本地提交"的手段；
+  ③ API 推送产生的 commit 与本地 `git commit` 是**不同对象**，会造成历史分叉（内容相同），
+  网络恢复后必须 `fetch` + `reset --hard origin/main` 对齐，
+  否则下次正常 push 会因非快进而被拒、诱发有人去 `--force` 把历史搞乱。
+  另记 `gh api` 改仓库描述与 topics 的差异：描述走 PATCH 仓库主体，
+  **topics 必须走 PUT .../topics**（PATCH 仓库主体改它返回 200 但不生效）。
 - 审计当场抓到一处自身泄漏：规则文档的"泛化写法参考"表
   把真实别名与语言对写成了示例，已改为占位符。
 

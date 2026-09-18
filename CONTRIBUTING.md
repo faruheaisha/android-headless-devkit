@@ -185,6 +185,94 @@ PRIVACY_MARKS="myproject,myalias" python scripts/privacy_audit.py --root .
 > 只有站在发布视角才觉得刺眼。所以要在**固定的动作里**检查它，
 > 而不是指望写的时候一直绷着这根弦。
 
+## ★ 推送通道与历史对齐
+
+发布到 GitHub 时，`git push` 可能被网络重置：
+
+```
+fatal: unable to access 'https://github.com/<owner>/<repo>.git/':
+  Recv failure: Connection was reset
+```
+
+先判断是"整体不通"还是"只有 git 的端口不通"：
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" https://api.github.com   # API 是否可用
+curl -s -o /dev/null -w "%{http_code}\n" https://github.com       # git 主站是否可用
+ssh -T git@github.com                                             # SSH 通道
+```
+
+实测遇到过 **API 通（200）、`github.com` 被重置、SSH 22 端口通但无密钥** 的组合。
+
+### 兜底：用 GitHub Git Data API 推送
+
+`gh` 走 API，网络路径不同，通常仍可用。流程是 blob → tree → commit → ref：
+
+```bash
+# 1) 取远端当前 HEAD 与其 tree
+gh api repos/<owner>/<repo>/git/ref/heads/main --jq .object.sha
+gh api repos/<owner>/<repo>/git/commits/<sha> --jq .tree.sha
+
+# 2) 为每个待推送文件建 blob（内容 base64）
+gh api -X POST repos/<owner>/<repo>/git/blobs --input blob.json
+
+# 3) 基于远端 tree 建新 tree（base_tree + tree 数组成员）
+gh api -X POST repos/<owner>/<repo>/git/trees --input tree.json
+
+# 4) 建 commit（message + tree + parents）
+gh api -X POST repos/<owner>/<repo>/git/commits --input commit.json
+
+# 5) 移动分支引用（force: false，不是强推）
+gh api -X PATCH repos/<owner>/<repo>/git/refs/heads/main --input ref.json
+```
+
+**三条要点**：
+
+1. **`base_tree` 用远端的 tree**，不是本地的。这样构建出的新 tree
+   既包含你的改动，也保留远端已有的其他文件。
+2. ★ **推送前后校验 tree 一致**：
+   ```bash
+   git rev-parse HEAD^{tree}      # 本地提交的 tree
+   # 应与上一步 API 返回的新 tree 相同
+   ```
+   相同即证明"远端内容 == 本地提交内容"，比逐文件肉眼比对可靠。
+   这是唯一能在无法 `git fetch` 时验证内容正确的手段。
+3. **`gh api` 处理 JS/中文内容时用 `--input <文件>`**，不要把 JSON 写进命令行 ——
+   引号与转义会出错。
+
+### ★ 事后必须对齐历史
+
+API 推送创建的 commit 与本地 `git commit` 产生的**是不同对象**（SHA 不同），
+于是本地与远端会**分叉**：双方各自领先若干提交，但内容相同。
+
+网络恢复后立即对齐：
+
+```bash
+git fetch origin main              # 通了就说明恢复
+git branch backup-api-push <本地HEAD>   # 保险：备份本地那批 commit
+git reset --hard origin/main       # 以远端为准（内容相同，不会丢东西）
+git branch -D backup-api-push      # 确认无误后删
+```
+
+> **为什么以远端为准**：内容已经过 tree 校验确认一致，
+> 而远端那份是对外可见的、也是别人会 clone 的，让本地去跟随它更自然。
+> 不处理分叉的后果是：下次正常 `git push` 会因非快进而被拒，
+> 然后有人可能去 `--force`，把历史搞乱。
+
+### 仓库描述与 topics 的改法（各走各的端点）
+
+```bash
+# 描述：PATCH 仓库主体
+gh api -X PATCH repos/<owner>/<repo> --input '{"description":"..."}'
+
+# ★ topics：必须用专用端点，PATCH 仓库主体改它**返回 200 但不生效**
+gh api -X PUT repos/<owner>/<repo>/topics --input '{"names":["a","b"]}'
+```
+
+踩过的坑：先用 `PATCH repos/<owner>/<repo>` 同时改描述和 topics，
+返回 `422 Validation Failed`；分开写则描述成功、topics 静默失败。
+**排查方式**：改完立刻读回来核对，不要只看返回码。
+
 ## 关于本机绝对路径
 
 示例命令里出现 `E:\AndroidDev` 这类路径是可以的（它是本 skill 的默认值），
